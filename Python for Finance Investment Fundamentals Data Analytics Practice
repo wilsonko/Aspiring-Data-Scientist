@@ -1,0 +1,124 @@
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+# Define the assets (updated tickers)
+assets = ['AAL', 'DAL', 'JBLU', 'UAL']
+colors = ['blue', 'purple', 'orange', 'gray']  # Color for each asset
+pf_data = pd.DataFrame()
+
+# Retrieve adjusted close prices for each asset
+for a in assets:
+    pf_data[a] = yf.download(a, start='2013-01-01')['Adj Close']
+
+# Calculate log returns
+log_returns = np.log(pf_data / pf_data.shift(1))
+
+# Initialize number of assets
+num_assets = len(assets)
+
+# Portfolio simulation
+pfolio_returns = []
+pfolio_volatilities = []
+
+for x in range(1000):
+    weights = np.random.random(num_assets)
+    weights /= np.sum(weights)
+    pfolio_returns.append(np.sum(weights * log_returns.mean()) * 250)
+    pfolio_volatilities.append(np.sqrt(np.dot(weights.T, np.dot(log_returns.cov() * 250, weights))))
+
+# Convert to NumPy arrays
+pfolio_returns = np.array(pfolio_returns)
+pfolio_volatilities = np.array(pfolio_volatilities)
+
+# Create a DataFrame for portfolios
+portfolios = pd.DataFrame({'Return': pfolio_returns, 'Volatility': pfolio_volatilities})
+
+# Normalize and plot adjusted closing prices
+plt.figure(figsize=(10, 5))
+for idx, asset in enumerate(assets):
+    (pf_data[asset] / pf_data[asset].iloc[0] * 100).plot(color=colors[idx], label=asset)
+
+# Formatting the x-axis for quarterly labels
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b/%Y'))
+plt.gca().xaxis.set_major_locator(mdates.MonthLocator(interval=3))  # Set ticks every quarter
+
+# Rotate date labels for better readability
+plt.xticks(rotation=45)
+
+# Add title and labels
+plt.title("Normalized Adjusted Closing Prices of Airlines")
+plt.xlabel("Date")
+plt.ylabel("Price Index (Base = 100)")
+
+# Highlight significant drops with red triangles
+threshold = 10  # Define a significant drop threshold (10%)
+
+# Track if significant drops are plotted
+significant_drop_label_added = False
+
+for idx, asset in enumerate(assets):
+    # Calculate the percentage change
+    pct_change = pf_data[asset].pct_change() * 100
+
+    # Identify significant drops
+    significant_drops = pct_change[pct_change < -threshold]
+
+    # Plot triangles at significant drop points in red
+    for date in significant_drops.index:
+        drop_value = pf_data[asset].loc[date] / pf_data[asset].iloc[0] * 100  # Normalized value
+        plt.plot(date, drop_value, marker='^', color='red', markersize=10)
+        
+        # Add a legend entry for significant drop if not added already
+        if not significant_drop_label_added:
+            plt.plot([], [], marker='^', color='red', markersize=10, label='Significant Drop')
+            significant_drop_label_added = True
+
+# Show grid
+plt.grid()
+
+# Display the plot
+plt.legend()
+plt.show()
+
+# Plot the results of the portfolio simulation
+portfolios.plot(x='Volatility', y='Return', kind='scatter', figsize=(10, 6))
+plt.xlabel('Expected Volatility')
+plt.ylabel('Expected Return')
+plt.title('Portfolio Return vs. Volatility')
+plt.grid(True)
+plt.show()
+
+# Summary
+# Data Retrieval:
+# The adjusted closing prices for American Airlines (AAL), Delta Air Lines (DAL), JetBlue Airways (JBLU), and United Airlines (UAL) 
+# from January 1, 2013, to the present are downloaded using the yfinance library and stored in a DataFrame called pf_data.
+
+# Log Returns Calculation:
+# Logarithmic returns are calculated from the adjusted closing prices. This involves taking the natural logarithm 
+# of the ratio of the current price to the previous price. Log returns are useful for financial analysis as they are time additive.
+
+# Portfolio Simulation:
+# The code generates 1,000 random portfolios by assigning random weights to each of the four assets. 
+# These weights are normalized so that their sum equals 1. For each portfolio, the expected annual return is calculated 
+# by taking the weighted average of the log returns and multiplying by 250 (the typical number of trading days in a year).
+# The portfolio volatility (risk) is calculated using the covariance matrix of the log returns and the weights of the assets in the portfolio.
+
+# Results Compilation:
+# The expected returns and volatilities of all simulated portfolios are stored in a DataFrame called portfolios.
+
+# Visualization:
+# A scatter plot is created to visualize the relationship between expected return and volatility for the simulated portfolios. 
+# The x-axis represents expected volatility, and the y-axis represents expected return.
+
+# Interpretation of Output:
+# The scatter plot illustrates the trade-off between risk (volatility) and return. 
+# Generally, you would expect to see a positive correlation: as expected return increases, so does expected volatility. 
+# This reflects the principle that higher potential returns come with higher risk.
+# The distribution of points in the plot can help identify the efficient frontier, where optimal portfolios lie. 
+# Portfolios that are higher on the y-axis (higher return) for a given level of risk on the x-axis are considered more favorable.
+# Any outliers or clusters of points can provide insights into which combinations of asset weights yield the best risk-return trade-offs.
+# Overall, the output helps investors understand the possible outcomes of different asset allocations within the specified assets, 
+# guiding them in making informed investment decisions.
